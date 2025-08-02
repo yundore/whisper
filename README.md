@@ -66,3 +66,48 @@ CREATE TABLE purchases (
     FOREIGN KEY (user_id) REFERENCES users(id)
 );
 ```
+# Minimal User Database - Only Username & Password
+
+## 🗄️ User Database Table
+
+| ID | Username     | Password (Hashed)           |
+|----|--------------|-----------------------------|
+| 1  | cooluser123  | `$2b$10$YZxy89...hashed...` |
+| 2  | gamer456     | `$2b$10$ABcd12...hashed...` |
+| 3  | ninja789     | `$2b$10$QRst34...hashed...` |
+
+---
+
+### ✅ What This Database DOES Store:
+- **Username** – The unique identifier for each user
+- **Password Hash** – An encrypted version of the password (never the actual password)
+- **User ID** – A simple number to identify each record
+
+### ❌ What This Database DOES NOT Store:
+- Real names
+- Email addresses
+- Phone numbers
+- Physical addresses
+- Birth dates
+- Credit card information
+- Any other personal information
+
+---
+
+### 🔒 Privacy & Security Benefits:
+- Minimal data collection = minimal privacy risk
+- Even if breached, no personal information is exposed
+- Passwords are hashed, so they can't be read even by database admins
+- Perfect for anonymous services or privacy-focused applications
+
+---
+
+#### Simple Database Schema Example
+
+```sql
+CREATE TABLE users (
+  id INTEGER PRIMARY KEY,
+  username VARCHAR(50) UNIQUE NOT NULL,
+  password_hash VARCHAR(255) NOT NULL
+);
+```
