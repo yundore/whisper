@@ -38,6 +38,9 @@ CREATE TABLE users (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+```
+### Purchases Table 
+```sql
 CREATE TABLE guest_purchases (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     guest_token VARCHAR(100) UNIQUE NOT NULL,
@@ -48,7 +51,10 @@ CREATE TABLE guest_purchases (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     expires_at TIMESTAMP
 );
+```
 
+### Guest Purchases Table
+```sql
 CREATE TABLE purchases (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     user_id INTEGER,
@@ -59,3 +65,4 @@ CREATE TABLE purchases (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES users(id)
 );
+```
