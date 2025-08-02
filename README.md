@@ -1,4 +1,4 @@
-This was made with Claude Opus 4. Just a brain dump idea I had that seemed pretty useful.
+This was made with Claude Opus 4, just a brain dump idea I had that seemed pretty useful. So do keep in mind that there might be some mistakes.
 
 
 # whisper 🔐
