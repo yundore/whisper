@@ -1,0 +1,51 @@
+# Contributing to MinimalAuth
+
+First off, thank you for considering contributing to whisper! It's people like you who make who such a great tool for privacy-conscious developers.
+
+## Code of Conduct
+
+This project and everyone participating in it is governed by our Code of Conduct. By participating, you are expected to uphold this code.
+
+## How Can I Contribute?
+
+### Reporting Bugs
+
+- Ensure the bug was not already reported by searching on GitHub under [Issues](https://github.com/yundore/minimalauth/issues)
+- If you're unable to find an open issue addressing the problem, [open a new one](https://github.com/yundore/minimalauth/issues/new)
+
+### Suggesting Enhancements
+
+- Open a new issue with a clear title and description
+- Provide examples of how the enhancement would work
+- Explain why this enhancement would be useful
+
+### Pull Requests
+
+1. Fork the repo and create your branch from `main`
+2. If you've added code, add tests that prove your fix/feature works
+3. Ensure your code follows the existing style
+4. Make sure your code passes all tests
+5. Issue that pull request!
+
+### Adding Language Examples
+
+We love new language implementations! When adding a new language:
+
+1. Create a new directory: `examples/[language-name]/`
+2. Include a README with setup instructions
+3. Follow the same minimal principles (username + password hash only)
+4. Include basic tests
+5. Update the main README to reference your implementation
+
+## Style Guidelines
+
+- Keep it simple and minimal
+- Comment your code where necessary
+- Follow the language's standard conventions
+- Remember: we store ONLY username and password hash
+
+## Privacy First
+
+Any contribution must maintain our core principle: minimal data collection. We will not accept PRs that add personal data fields to the core authentication system.
+
+Thank you! 
