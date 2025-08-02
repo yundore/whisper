@@ -1,0 +1,401 @@
+// === tests/whisper.test.js ===
+const Whisper = require('../src/index');
+
+describe('Whisper', () => {
+  let auth;
+
+  beforeEach(() => {
+    auth = new Whisper({ dbPath: ':memory:' });
+  });
+
+  afterEach(async () => {
+    await auth.close();
+  });
+
+  describe('User Management', () => {
+    test('should create a new user', async () => {
+      const user = await auth.createUser('testuser', 'password123');
+      expect(user).toHaveProperty('id');
+      expect(user.username).toBe('testuser');
+    });
+
+    test('should lowercase usernames', async () => {
+      const user = await auth.createUser('TestUser', 'password123');
+      expect(user.username).toBe('testuser');
+    });
+
+    test('should reject duplicate usernames', async () => {
+      await auth.createUser('testuser', 'password123');
+      await expect(auth.createUser('testuser', 'password456'))
+        .rejects.toThrow('Username already exists');
+    });
+
+    test('should validate username format', async () => {
+      await expect(auth.createUser('ab', 'password123'))
+        .rejects.toThrow('Username must be between 3 and 50 characters');
+      
+      await expect(auth.createUser('user@name', 'password123'))
+        .rejects.toThrow('Username can only contain letters, numbers, underscores, and hyphens');
+    });
+
+    test('should validate password length', async () => {
+      await expect(auth.createUser('testuser', 'short'))
+        .rejects.toThrow('Password must be at least 8 characters long');
+    });
+
+    test('should verify valid credentials', async () => {
+      await auth.createUser('testuser', 'password123');
+      const verified = await auth.verifyUser('testuser', 'password123');
+      expect(verified).toHaveProperty('id');
+      expect(verified.username).toBe('testuser');
+    });
+
+    test('should reject invalid credentials', async () => {
+      await auth.createUser('testuser', 'password123');
+      const verified = await auth.verifyUser('testuser', 'wrongpassword');
+      expect(verified).toBeNull();
+    });
+
+    test('should change password', async () => {
+      const user = await auth.createUser('testuser', 'oldpassword');
+      await auth.changePassword(user.id, 'oldpassword', 'newpassword');
+      
+      const verified = await auth.verifyUser('testuser', 'newpassword');
+      expect(verified).toBeTruthy();
+    });
+
+    test('should delete user', async () => {
+      const user = await auth.createUser('testuser', 'password123');
+      const deleted = await auth.deleteUser(user.id);
+      expect(deleted).toBe(true);
+      
+      const verified = await auth.verifyUser('testuser', 'password123');
+      expect(verified).toBeNull();
+    });
+  });
+
+  describe('Session Management', () => {
+    test('should create and verify session', async () => {
+      const user = await auth.createUser('testuser', 'password123');
+      const session = await auth.createSession(user.id);
+      
+      expect(session).toHaveProperty('token');
+      expect(session).toHaveProperty('expiresAt');
+      
+      const verified = await auth.verifySession(session.token);
+      expect(verified.userId).toBe(user.id);
+      expect(verified.username).toBe('testuser');
+    });
+
+    test('should revoke session', async () => {
+      const user = await auth.createUser('testuser', 'password123');
+      const session = await auth.createSession(user.id);
+      
+      const revoked = await auth.revokeSession(session.token);
+      expect(revoked).toBe(true);
+      
+      const verified = await auth.verifySession(session.token);
+      expect(verified).toBeNull();
+    });
+  });
+
+  describe('Purchase Management', () => {
+    test('should record user purchase', async () => {
+      const user = await auth.createUser('testuser', 'password123');
+      const purchase = await auth.recordPurchase('tx_123', 99.99, 'USD', user.id);
+      
+      expect(purchase.transactionId).toBe('tx_123');
+      expect(purchase.amount).toBe(99.99);
+    });
+
+    test('should record guest purchase', async () => {
+      const purchase = await auth.recordPurchase('tx_456', 49.99);
+      
+      expect(purchase).toHaveProperty('guestToken');
+      expect(purchase.guestToken).toMatch(/^guest_/);
+    });
+
+    test('should retrieve user purchases', async () => {
+      const user = await auth.createUser('testuser', 'password123');
+      await auth.recordPurchase('tx_1', 10.00, 'USD', user.id);
+      await auth.recordPurchase('tx_2', 20.00, 'USD', user.id);
+      
+      const purchases = await auth.getUserPurchases(user.id);
+      expect(purchases).toHaveLength(2);
+    });
+
+    test('should prevent duplicate transactions', async () => {
+      await auth.recordPurchase('tx_123', 99.99);
+      await expect(auth.recordPurchase('tx_123', 99.99))
+        .rejects.toThrow('Transaction already recorded');
+    });
+  });
+});
+
+// === example/server.js ===
+const express = require('express');
+const Whisper = require('../src/index');
+const rateLimit = require('express-rate-limit');
+
+const app = express();
+const auth = new Whisper({ dbPath: './whisper.db' });
+
+app.use(express.json());
+
+// Rate limiting
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 5, // 5 attempts
+  message: 'Too many login attempts, please try again later'
+});
+
+const createAccountLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000, // 1 hour
+  max: 3, // 3 accounts per hour
+  message: 'Too many accounts created, please try again later'
+});
+
+// === ROUTES ===
+
+// Create user
+app.post('/api/register', createAccountLimiter, async (req, res) => {
+  try {
+    const { username, password } = req.body;
+    const user = await auth.createUser(username, password);
+    const session = await auth.createSession(user.id);
+    
+    res.json({
+      success: true,
+      token: session.token,
+      expiresAt: session.expiresAt
+    });
+  } catch (error) {
+    res.status(400).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+// Login
+app.post('/api/login', loginLimiter, async (req, res) => {
+  try {
+    const { username, password } = req.body;
+    const user = await auth.verifyUser(username, password);
+    
+    if (!user) {
+      return res.status(401).json({
+        success: false,
+        error: 'Invalid credentials'
+      });
+    }
+    
+    const session = await auth.createSession(user.id);
+    
+    res.json({
+      success: true,
+      token: session.token,
+      expiresAt: session.expiresAt
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: 'Server error'
+    });
+  }
+});
+
+// Middleware to verify authentication
+async function authenticate(req, res, next) {
+  const token = req.headers.authorization?.replace('Bearer ', '');
+  
+  if (!token) {
+    return res.status(401).json({
+      success: false,
+      error: 'No token provided'
+    });
+  }
+  
+  try {
+    const session = await auth.verifySession(token);
+    if (!session) {
+      return res.status(401).json({
+        success: false,
+        error: 'Invalid or expired token'
+      });
+    }
+    
+    req.user = session;
+    next();
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: 'Server error'
+    });
+  }
+}
+
+// Logout
+app.post('/api/logout', authenticate, async (req, res) => {
+  try {
+    const token = req.headers.authorization?.replace('Bearer ', '');
+    await auth.revokeSession(token);
+    
+    res.json({
+      success: true,
+      message: 'Logged out successfully'
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: 'Server error'
+    });
+  }
+});
+
+// Change password
+app.post('/api/change-password', authenticate, async (req, res) => {
+  try {
+    const { oldPassword, newPassword } = req.body;
+    await auth.changePassword(req.user.userId, oldPassword, newPassword);
+    
+    res.json({
+      success: true,
+      message: 'Password changed successfully'
+    });
+  } catch (error) {
+    res.status(400).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+// Delete account
+app.delete('/api/account', authenticate, async (req, res) => {
+  try {
+    await auth.deleteUser(req.user.userId);
+    
+    res.json({
+      success: true,
+      message: 'Account deleted successfully'
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: 'Server error'
+    });
+  }
+});
+
+// Record purchase (authenticated user)
+app.post('/api/purchase', authenticate, async (req, res) => {
+  try {
+    const { transactionId, amount, currency } = req.body;
+    const purchase = await auth.recordPurchase(
+      transactionId,
+      amount,
+      currency || 'USD',
+      req.user.userId
+    );
+    
+    res.json({
+      success: true,
+      purchase
+    });
+  } catch (error) {
+    res.status(400).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+// Record guest purchase
+app.post('/api/guest-purchase', async (req, res) => {
+  try {
+    const { transactionId, amount, currency } = req.body;
+    const purchase = await auth.recordPurchase(
+      transactionId,
+      amount,
+      currency || 'USD'
+    );
+    
+    res.json({
+      success: true,
+      purchase,
+      guestToken: purchase.guestToken
+    });
+  } catch (error) {
+    res.status(400).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+// Get user purchases
+app.get('/api/purchases', authenticate, async (req, res) => {
+  try {
+    const purchases = await auth.getUserPurchases(req.user.userId);
+    
+    res.json({
+      success: true,
+      purchases
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: 'Server error'
+    });
+  }
+});
+
+// Get guest purchases
+app.get('/api/guest-purchases/:guestToken', async (req, res) => {
+  try {
+    const purchases = await auth.getGuestPurchases(req.params.guestToken);
+    
+    res.json({
+      success: true,
+      purchases
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: 'Server error'
+    });
+  }
+});
+
+// Stats endpoint (public)
+app.get('/api/stats', async (req, res) => {
+  try {
+    const userCount = await auth.getUserCount();
+    
+    res.json({
+      success: true,
+      userCount
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: 'Server error'
+    });
+  }
+});
+
+// Cleanup expired sessions periodically
+setInterval(async () => {
+  try {
+    const cleaned = await auth.cleanupExpiredSessions();
+    console.log(`Cleaned up ${cleaned} expired sessions`);
+  } catch (error) {
+    console.error('Session cleanup error:', error);
+  }
+}, 60 * 60 * 1000); // Every hour
+
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => {
+  console.log(`Whisper server running on port ${PORT}`);
+});
