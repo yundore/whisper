@@ -1,0 +1,39 @@
+{
+  "name": "whisper",
+  "version": "2.0.0",
+  "description": "Privacy-first authentication that stores only a username and a password hash.",
+  "main": "src/index.js",
+  "scripts": {
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "start": "node examples/node-server.js",
+    "dev": "nodemon examples/node-server.js"
+  },
+  "keywords": [
+    "auth",
+    "authentication",
+    "privacy",
+    "minimal",
+    "anonymous",
+    "gdpr"
+  ],
+  "author": "yundore",
+  "license": "MIT",
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "bcrypt": "^6.0.0",
+    "better-sqlite3": "^11.3.0",
+    "express": "^4.21.0",
+    "express-rate-limit": "^7.4.0",
+    "helmet": "^8.0.0"
+  },
+  "optionalDependencies": {
+    "argon2": "^0.41.1"
+  },
+  "devDependencies": {
+    "jest": "^29.7.0",
+    "nodemon": "^3.1.7"
+  }
+}
