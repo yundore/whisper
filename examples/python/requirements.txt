@@ -1,5 +1,5 @@
-# Core dependency for the Python implementation.
-bcrypt==4.2.0
+# Core dependency for the Python implementation. Tested against 4.2 through 5.0.
+bcrypt>=4.2,<6
 
 # Optional: only needed if you construct Whisper(algorithm="argon2").
 # argon2-cffi==23.1.0

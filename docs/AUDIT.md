@@ -2,6 +2,8 @@
 
 > Audit of https://github.com/yundore/whisper performed 2026-06-12 by Claude Opus 4.8 (subagent), cross-checked and extended by Claude Fable 5 (orchestrator). Graded against the project's own stated privacy ethos (README: "stores ONLY username + password hash, no tracking, GDPR-friendly by design") plus privacy-by-design and security best practice.
 
+> **Status: remediated in 2.0.0.** This is the pre-2.0 audit, kept as a record of why the project was rebuilt. Every Critical, High, and Medium finding, plus the orchestrator addenda (X-1 to X-3), is addressed in the 2.0.0 rewrite. See [CHANGELOG.md](../CHANGELOG.md) for the mapping from finding to fix.
+
 ## 1. Verdict
 
 **No — Whisper does not live up to its own privacy ethos today, and several of its headline claims are false as written.** The two foreign-key `ON DELETE CASCADE`/`SET NULL` clauses that the entire "GDPR-friendly / right-to-erasure" promise rests on are **silently inert**, because neither the Node nor the Python implementation issues `PRAGMA foreign_keys = ON` (SQLite disables FK enforcement by default in both `node-sqlite3` and Python's `sqlite3` stdlib). The result: deleting a user **orphans their sessions and purchases instead of erasing/anonymizing them**, the README's "what we DON'T store" list is contradicted by `created_at` timestamps, plaintext session tokens, purchase amounts/transaction IDs, and client-IP processing in the example server, and the "bcrypt/argon2," "payment processor integration," and `guest_purchases.expires_at` features are either never implemented or wrong. It is a tidy, readable, but unhardened prototype masquerading as an audited privacy product.
